@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FOREST·CARBON·AI — LiDAR Pipeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+<!-- ── SIDEBAR ─────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🌲</div>
+    <div class="logo-text">
+      <h1>FOREST·CARBON·AI</h1>
+      <p>LiDAR Point Cloud Pipeline v2.0</p>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">PIPELINE</div>
+
+    <button class="nav-item active" data-tab="upload" onclick="switchTab('upload',this)">
+      <span class="nav-dot active-dot"></span>
+      <span class="nav-label">File Upload</span>
+      <span class="nav-badge" id="nav-badge-upload"></span>
+    </button>
+
+    <button class="nav-item locked" data-tab="pointcloud" onclick="switchTab('pointcloud',this)" id="nav-pointcloud">
+      <span class="nav-dot"></span>
+      <span class="nav-label">Point Cloud Classes</span>
+      <span class="nav-badge" id="nav-badge-pointcloud"></span>
+    </button>
+
+    <button class="nav-item locked" data-tab="terrain" onclick="switchTab('terrain',this)" id="nav-terrain">
+      <span class="nav-dot"></span>
+      <span class="nav-label">Terrain Models</span>
+      <span class="nav-badge" id="nav-badge-terrain"></span>
+    </button>
+
+    <button class="nav-item locked" data-tab="analytics" onclick="switchTab('analytics',this)" id="nav-analytics">
+      <span class="nav-dot"></span>
+      <span class="nav-label">Analytics</span>
+      <span class="nav-badge" id="nav-badge-analytics"></span>
+    </button>
+
+    <button class="nav-item locked" data-tab="spatial" onclick="switchTab('spatial',this)" id="nav-spatial">
+      <span class="nav-dot"></span>
+      <span class="nav-label">Spatial Map</span>
+      <span class="nav-badge" id="nav-badge-spatial"></span>
+    </button>
+
+    <button class="nav-item locked" data-tab="inventory" onclick="switchTab('inventory',this)" id="nav-inventory">
+      <span class="nav-dot"></span>
+      <span class="nav-label">Tree Inventory</span>
+      <span class="nav-badge" id="nav-badge-inventory"></span>
+    </button>
+
+    <div class="nav-section-label" style="margin-top:24px">DEEP LEARNING</div>
+    <button class="nav-item locked" data-tab="dl" id="nav-dl">
+      <span class="nav-dot"></span>
+      <span class="nav-label">DL Models</span>
+    </button>
+
+    <div class="nav-section-label" style="margin-top:24px">BUILDING</div>
+    <button class="nav-item locked" data-tab="building" onclick="switchTab('building',this)" id="nav-building">
+      <span class="nav-dot"></span>
+      <span class="nav-label">Tree vs Building</span>
+      <span class="nav-badge" id="nav-badge-building"></span>
+    </button>
+
+    <div class="sidebar-bottom">
+      <div class="session-info" id="sessionInfo">
+        <span style="color:var(--muted);font-size:10px">No file loaded</span>
+      </div>
+      <div class="progress-wrap" id="progressWrap" style="display:none">
+        <div class="progress-label" id="progressLabel">Processing…</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Bottom footer info like reference image -->
+  <div class="sidebar-footer-info">
+    <div>PointNet++ / Point Transformer</div>
+    <div>AGB Estimation · Carbon Calc</div>
+    <div id="modelSelected">PointNet++ selected</div>
+  </div>
+
+  <!-- Project info trigger -->
+  <button class="project-info-btn" onclick="openProjectInfo()" title="Project &amp; Team Info">
+    <span class="pi-icon">ℹ</span>
+    <span>Project Info</span>
+  </button>
+</aside>
+
+<!-- ── PROJECT INFO POPUP ──────────────────────────────────── -->
+<div class="modal-overlay" id="projectInfoOverlay" onclick="if(event.target===this) closeProjectInfo()">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Project Information</h3>
+      <button class="modal-close" onclick="closeProjectInfo()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <span class="modal-label">Project Title</span>
+        <span class="modal-value" id="piProjectTitle">FOREST·CARBON·AI — LiDAR Point Cloud Pipeline</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">Project Manager</span>
+        <span class="modal-value" id="piManager">Dr. Abhijith</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">Team Lead</span>
+        <span class="modal-value" id="piTeamLead">—</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">Team Members</span>
+        <span class="modal-value" id="piTeamMembers">—</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span>IIT Tirupati Navavishkär I-Hub Foundation · NM-ICPS · DST</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN CONTENT ─────────────────────────────────────────── -->
+<main class="main-content">
+
+  <!-- ── TOP BAR: status dot + methodology link ─────────────── -->
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-label" id="statusDotLabel">IDLE</span>
+    </div>
+    <div class="top-bar-stats" id="topBarStats"></div>
+    <a href="/methodology" target="_blank" class="methodology-btn">💡 Methodology &amp; Insights ↗</a>
+  </div>
+
+  <!-- ══ PANEL 1 — File Upload ══════════════════════════════ -->
+  <div id="tab-upload" class="tab-panel active">
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">INPUT DATA</h2>
+      </div>
+    </div>
+
+    <div class="upload-zone" id="uploadZone">
+      <div class="upload-icon">🌲</div>
+      <div class="upload-title">Drop your LiDAR file here</div>
+      <div class="upload-sub">or click to browse</div>
+      <div class="upload-formats">
+        <span class="fmt-badge active">.e57</span>
+        <span class="fmt-badge active">.las</span>
+        <span class="fmt-badge active">.laz</span>
+        <span class="fmt-badge active">.ply</span>
+        <span class="fmt-badge active">.pcd</span>
+      </div>
+      <input type="file" id="fileInput" accept=".las,.laz,.e57,.ply,.pcd" style="display:none">
+    </div>
+
+    <!-- Collapsed bar shown after a file has been loaded -->
+    <div class="upload-collapsed" id="uploadCollapsed" style="display:none">
+      <div class="uc-left">
+        <span class="uc-icon">🌲</span>
+        <div>
+          <div class="uc-name" id="ucName">—</div>
+          <div class="uc-meta" id="ucMeta">—</div>
+        </div>
+      </div>
+      <button class="btn-sm" onclick="reopenUpload()">⇄ Change File</button>
+    </div>
+
+    <!-- 3D Point Cloud Preview — zoom / pan / rotate -->
+    <div class="viewer-card" id="viewerCard" style="display:none">
+      <div class="viewer-header">
+        <div>
+          <div class="chart-title">3D Point Cloud Preview</div>
+          <div class="chart-sub">Drag to rotate · scroll to zoom · right-drag to pan</div>
+        </div>
+        <div class="viewer-controls">
+          <button class="btn-sm" onclick="viewerResetCamera()">⟲ Reset View</button>
+          <button class="btn-sm" onclick="viewerZoom(0.8)">＋ Zoom In</button>
+          <button class="btn-sm" onclick="viewerZoom(1.25)">－ Zoom Out</button>
+          <button class="btn-sm" onclick="viewerToggleSpin()" id="viewerSpinBtn">▶ Auto-Rotate</button>
+        </div>
+      </div>
+      <div id="viewer3d"></div>
+    </div>
+
+    <div id="uploadStatus" style="display:none" class="status-card">
+      <div class="status-icon" id="statusIcon">⏳</div>
+      <div class="status-text" id="statusText">Reading file…</div>
+    </div>
+
+    <div id="classSummary" style="display:none">
+      <div class="section-title">Detected Classes</div>
+      <div class="classes-overview" id="classesOverview"></div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+    </div>
+
+    <!-- Single bottom-right next button -->
+    <div class="panel-footer" id="uploadFooter" style="display:none">
+      <div></div>
+      <button class="btn-next" onclick="runClassImages()">Next: Configure Model →</button>
+    </div>
+  </div>
+
+  <!-- ══ PANEL 2 — Point Cloud Classes ══════════════════════ -->
+  <div id="tab-pointcloud" class="tab-panel">
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">POINT CLOUD CLASSES</h2>
+        <p class="panel-sub" id="pcSub">LiDAR return density by classification</p>
+      </div>
+      <button class="btn-sm" onclick="runClassImages()">↺ Refresh</button>
+    </div>
+
+    <div class="donut-row">
+      <div class="chart-card" style="flex:1">
+        <div class="chart-title">Point Distribution</div>
+        <div class="chart-sub" id="donutTotal"></div>
+        <div style="position:relative;height:240px"><canvas id="donutChart"></canvas></div>
+      </div>
+      <div class="chart-card" style="flex:1">
+        <div class="chart-title">Class Breakdown</div>
+        <div class="chart-sub">Detected classification codes</div>
+        <div id="classLegend"></div>
+      </div>
+    </div>
+
+    <div class="section-title">Class Spatial Maps</div>
+    <div class="class-images-grid" id="classImagesGrid">
+      <div class="loading-placeholder"><div class="spinner"></div><span>Generating class images…</span></div>
+    </div>
+
+    <div class="panel-footer" id="pcFooter" style="display:none">
+      <div></div>
+      <button class="btn-next" onclick="runTerrain()">Build Terrain Models →</button>
+    </div>
+  </div>
+
+  <!-- ══ PANEL 3 — Terrain Models ═══════════════════════════ -->
+  <div id="tab-terrain" class="tab-panel">
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">TERRAIN MODELS</h2>
+        <p class="panel-sub">DTM · DSM · Canopy Height Model</p>
+      </div>
+      <button class="btn-sm" onclick="runTerrain()">↺ Rebuild</button>
+    </div>
+
+    <div id="terrainContent">
+      <div class="loading-placeholder"><div class="spinner"></div><span>Building terrain models…</span></div>
+    </div>
+
+    <div class="panel-footer" id="terrainFooter" style="display:none">
+      <div></div>
+      <button class="btn-next" onclick="goAnalytics()">Analytics →</button>
+    </div>
+  </div>
+
+  <!-- ══ PANEL 4 — Analytics ════════════════════════════════ -->
+  <div id="tab-analytics" class="tab-panel">
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">ANALYTICS</h2>
+        <p class="panel-sub">Allometric biomass · carbon &amp; CO₂ estimates</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-sm" onclick="buildInteractiveCharts(STATE.trees)">↺ Rebuild</button>
+        <button class="btn-sm btn-pdf" onclick="exportAnalyticsPDF()">⬇ PDF</button>
+      </div>
+    </div>
+
+    <!-- KPI row -->
+    <div class="kpi-grid" id="analyticsKpi"></div>
+
+    <!-- Carbon & CO₂ summary section -->
+    <div class="section-title" style="margin-top:6px">Carbon &amp; CO₂ Stock</div>
+    <div class="carbon-grid" id="carbonGrid"></div>
+
+    <!-- Per-tree charts -->
+    <div class="section-title" style="margin-top:24px">Tree Biometrics</div>
+    <div id="chartsContent">
+      <div class="loading-placeholder"><div class="spinner"></div><span>Generating charts…</span></div>
+    </div>
+
+    <!-- Building overview — shown only when Class 6 data present -->
+    <div id="analyticsBuildingSection" style="display:none"></div>
+
+    <div class="panel-footer" id="analyticsFooter" style="display:none">
+      <div></div>
+      <button class="btn-next" onclick="goSpatial()">Spatial Map →</button>
+    </div>
+  </div>
+
+  <!-- ══ PANEL 5 — Spatial Map ══════════════════════════════ -->
+  <div id="tab-spatial" class="tab-panel">
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">Spatial Tree Map</h2>
+        <p class="panel-sub">Hover over crowns to inspect individual trees</p>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">Color by:</span>
+        <button class="filter-btn active" onclick="setSpatialMode('height',this)">Height</button>
+        <button class="filter-btn" onclick="setSpatialMode('agb',this)">AGB</button>
+        <button class="filter-btn" onclick="setSpatialMode('crown',this)">Crown</button>
+      </div>
+    </div>
+
+    <!-- Canvas card — dark navy like reference image -->
+    <div class="spatial-card">
+      <canvas id="spatialCanvas"></canvas>
+    </div>
+    <div class="spatial-legend" id="spatialLegend"></div>
+
+    <div class="panel-footer" id="spatialFooter" style="display:none">
+      <div></div>
+      <button class="btn-next" onclick="goInventory()">Tree Inventory →</button>
+    </div>
+  </div>
+
+  <!-- ══ PANEL 6 — Tree Inventory ══════════════════════════ -->
+  <div id="tab-inventory" class="tab-panel">
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">TREE INVENTORY</h2>
+        <p class="panel-sub" id="inventoryCount"></p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input class="search-box" type="text" placeholder="Search Tree ID…" oninput="filterTable(this.value)">
+      </div>
+    </div>
+
+    <!-- Download Report section -->
+    <div class="report-card">
+      <div class="report-info">
+        <div class="report-icon">📄</div>
+        <div>
+          <div class="report-title">Download Report</div>
+          <div class="report-sub">Export the full tree inventory &amp; carbon analysis</div>
+        </div>
+      </div>
+      <div class="report-actions">
+        <button class="btn-sm" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn-sm btn-pdf" onclick="exportPDF()">⬇ PDF</button>
+        <button class="btn-next" onclick="exportFullReport()">⬇ Full Report (PDF)</button>
+      </div>
+    </div>
+
+    <!-- Building summary — shown only when Class 6 data present -->
+    <div id="inventoryBuildingSummary" style="display:none"></div>
+
+    <div class="table-wrap">
+      <table id="treeTable">        <thead>
+          <tr>
+            <th onclick="sortTable(0,'Tree_ID')">Tree ID ↕</th>
+            <th onclick="sortTable(1,'X')">X (m) ↕</th>
+            <th onclick="sortTable(2,'Y')">Y (m) ↕</th>
+            <th onclick="sortTable(3,'Height_m')">Height (m) ↕</th>
+            <th onclick="sortTable(4,'Crown_Area_m2')">Crown Area (m²) ↕</th>
+            <th onclick="sortTable(5,'Crown_Diameter_m')">Crown Ø (m) ↕</th>
+            <th onclick="sortTable(6,'DBH_cm')">DBH (cm) ↕</th>
+            <th onclick="sortTable(7,'AGB_kg')">AGB (kg) ↕</th>
+            <th onclick="sortTable(8,'Carbon_kg')">Carbon (kg) ↕</th>
+            <th onclick="sortTable(9,'CO2_kg')">CO₂ (kg) ↕</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- ══ PANEL 7 — Tree vs Building Carbon ════════════════════ -->
+  <div id="tab-building" class="tab-panel">
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">TREE CARBON — FRONT SIDE vs OUTSIDE</h2>
+        <p class="panel-sub">Tree carbon stock split by building front zone · Building embodied carbon: 300 kgCO₂e/m³ concrete</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-sm" onclick="runBuildingCarbon()">↺ Recalculate</button>
+        <button class="btn-sm btn-pdf" onclick="exportBuildingCSV()">⬇ CSV</button>
+        <button class="btn-sm btn-pdf" onclick="exportBuildingPDF()">⬇ PDF</button>
+        <button class="btn-next" onclick="exportBuildingPDF()">⬇ Full Report (PDF)</button>
+      </div>
+    </div>
+
+    <div id="buildingContent">
+      <div class="loading-placeholder"><div class="spinner"></div><span>Checking for building footprint…</span></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip">
+  <div class="tt-title" id="ttTitle"></div>
+  <div id="ttBody"></div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
